@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	repo "github.com/and13020/webapp/webapp/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -14,9 +15,9 @@ var ErrInvalidCredential = errors.New("invalid credential")
 
 type UserRepository interface {
 	CreateUser(name, email, password, avatar string) (int, error)
-	CreateUsers(users []User) error
-	GetUsersByName(name string) ([]User, error)
-	GetUserByEmail(email string) (*User, error)
+	CreateUsers(users []repo.User) error
+	GetUsersByName(name string) ([]repo.User, error)
+	GetUserByEmail(email string) (*repo.User, error)
 	Authenticate(email, plainPassword string) (int, error)
 }
 
@@ -36,7 +37,7 @@ func (r *SQLUserRepository) CreateUser(name, email, plainPassword, avatar string
 		return 0, err
 	}
 
-	hashPass, err := HashPassword(plainPassword)
+	hashPass, err := repo.HashPassword(plainPassword)
 	if err != nil {
 		return 0, err
 	}
@@ -81,7 +82,7 @@ func (r *SQLUserRepository) CreateUser(name, email, plainPassword, avatar string
 	return int(userID), nil
 }
 
-func (r *SQLUserRepository) CreateUsers(users []User) error {
+func (r *SQLUserRepository) CreateUsers(users []repo.User) error {
 
 	begin := `BEGIN TRANSACTION;`
 	insert := `INSERT INTO users (name, email, hashed_password) VALUES (?, ?, ?);`
@@ -134,7 +135,7 @@ func (r *SQLUserRepository) CreateUsers(users []User) error {
 	return nil
 }
 
-func (r *SQLUserRepository) GetUsersByName(name string) ([]User, error) {
+func (r *SQLUserRepository) GetUsersByName(name string) ([]repo.User, error) {
 	pstmt, err := r.DB.Prepare(`SELECT id, name, email, hashed_password, created_at FROM users WHERE name LIKE ?`)
 	if err != nil {
 		return nil, err
@@ -147,8 +148,8 @@ func (r *SQLUserRepository) GetUsersByName(name string) ([]User, error) {
 	}
 	defer rows.Close()
 
-	users := make([]User, 64)
-	var user User
+	users := make([]repo.User, 64)
+	var user repo.User
 
 	for rows.Next() {
 		err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.HashedPassword, &user.CreatedAt)
@@ -164,7 +165,7 @@ func (r *SQLUserRepository) GetUsersByName(name string) ([]User, error) {
 	return users, nil
 }
 
-func (r *SQLUserRepository) GetUserByEmail(email string) (*User, error) {
+func (r *SQLUserRepository) GetUserByEmail(email string) (*repo.User, error) {
 	stmt, err := r.DB.Prepare(`SELECT id, name, email, hashed_password, created_at FROM users WHERE email = ?`)
 	if err != nil {
 		return nil, err
@@ -172,7 +173,7 @@ func (r *SQLUserRepository) GetUserByEmail(email string) (*User, error) {
 	defer stmt.Close()
 
 	row := stmt.QueryRow(email)
-	var user User
+	var user repo.User
 	err = row.Scan(&user.ID, &user.Name, &user.Email, &user.HashedPassword, &user.CreatedAt)
 	if err != nil {
 		fmt.Println("ERROR in row scan: ", err)

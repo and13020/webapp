@@ -1,8 +1,10 @@
 package repository
 
 import (
+	"database/sql"
 	"errors"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -80,8 +82,104 @@ func calculateMetadata(totalRecords, page, pageSize int) Metadata {
 type PostRepository interface {
 	CreatePost(title, url string, userID int) (int, error)
 	AddComment(userID, postID int, body string) (int, error)
-	AddVote(userID, postID int, body int) error
+	AddVote(userID, postID int) error
 	GetAll(filter Filter) ([]Post, Metadata, error)
 	GetByID(id int) (*Post, error)
 	GetComments(postID int) ([]Comment, error)
+}
+
+type SQLPostRepository struct {
+	DB *sql.DB
+}
+
+func NewSQLPostRepository(db *sql.DB) *SQLPostRepository {
+	return &SQLPostRepository{DB: db}
+}
+
+var (
+	ErrDuplicatePostTitle = errors.New("duplicate post title")
+	ErrDuplicateVote      = errors.New("duplicate vote")
+)
+
+func (r *SQLPostRepository) CreatePost(title, url string, userID int) (int, error) {
+	stmt := "INSERT INTO posts (title, url, user_id) VALUES (?, ?, ?)"
+
+	result, err := r.DB.Exec(stmt, title, url, userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed: posts.title") {
+			return 0, ErrDuplicatePostTitle
+		}
+		return 0, errors.New("Could not execute 'INSERT INTO posts...' statement")
+	}
+
+	postID, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return int(postID), err
+}
+
+func (r *SQLPostRepository) AddComment(userID, postID int, body string) (int, error) {
+	stmt := "INSERT INTO comments (user_id, post_id, body) VALUES (?, ?, ?)"
+	result, err := r.DB.Exec(stmt, userID, postID, body)
+	if err != nil {
+		return 0, err
+	}
+
+	commentID, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(commentID), nil
+}
+
+func (r *SQLPostRepository) AddVote(userID, postID int) error {
+	stmt := "INSERT INTO votes (user_id, post_id) VALUES (?, ?)"
+
+	_, err := r.DB.Exec(stmt, userID, postID)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") || strings.Contains(err.Error(), "PRIMARY KEY constraint failed") {
+			return ErrDuplicateVote
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (r *SQLPostRepository) GetAll(filter Filter) ([]Post, Metadata, error) {
+	// TODO
+	return nil, Metadata{}, nil
+}
+
+func (r *SQLPostRepository) GetByID(id int) (*Post, error) {
+	stmt := `
+	SELECT p.id, p.title, p.url, p.user_id, p.created_at,
+	u.name as user_name,
+	COUNT(DISTINCT c.id) AS comment_count,
+	COUNT(DISTINCT v.user_id) AS vote_count,
+	FROM posts p
+	LEFT JOIN users u ON p.user_id = u.id
+	LEFT JOIN comments c ON p.id = c.post_id 
+	LEFT JOIN votes v ON p.id = v.post_id 
+	WHERE p.id = ?
+	GROUP BY p.id, p.title, p.url, p.user_id, p.created_at, u.name
+	`
+	row := r.DB.QueryRow(stmt, id)
+	var post Post
+	err := row.Scan(&post.ID,
+		&post.Title,
+		&post.URL,
+		&post.UserID,
+		&post.CreatedAt,
+		&post.UserName,
+		&post.CommentCount,
+		&post.VoteCount)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &post, nil
 }

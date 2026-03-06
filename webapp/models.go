@@ -1,7 +1,5 @@
 package main
 
-import "time"
-
 var UserSchema = `
 CREATE TABLE IF NOT EXISTS users (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,18 +40,3 @@ var VotesSchema = `CREATE TABLE votes (
 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, post_id)
 );`
-
-type User struct {
-	ID             int       `json:"id"`
-	Name           string    `json:"name"`
-	Email          string    `json:"email"`
-	HashedPassword string    `json:"-"`
-	Profile        Profile   `json:"profile"`
-	CreatedAt      time.Time `json:"created"`
-}
-
-type Profile struct {
-	ProfileID int64     `json:"id"`
-	Avatar    string    `json:"avatar"`
-	Created   time.Time `json:"created"`
-}

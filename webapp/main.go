@@ -9,6 +9,7 @@ import (
 	"time"
 
 	repo "webapp/repository"
+	utils "webapp/utils"
 
 	"github.com/golangcollege/sessions"
 )
@@ -26,7 +27,7 @@ type application struct {
 func main() {
 
 	// start DB
-	db, err := ConnectDB("users_database.db")
+	db, err := utils.ConnectDB("users_database.db")
 	if err != nil {
 		log.Fatal(err)
 	}

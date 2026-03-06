@@ -3,8 +3,6 @@ package utils
 import (
 	"database/sql"
 	"fmt"
-	"net/http"
-	"runtime/debug"
 
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/bcrypt"
@@ -31,12 +29,4 @@ func HashPassword(plainPassword string) ([]byte, error) {
 		return nil, fmt.Errorf("Failed to encrypt password at HashPassword()")
 	}
 	return encryptedPassword, nil
-}
-
-func (app *application) serverError(w http.ResponseWriter, err error) {
-	trace := fmt.Sprintf("%s\n%s", err.Error(), debug.Stack())
-
-	// Our app's error log - add to its output
-	app.errorLog.Output(2, trace)
-	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }

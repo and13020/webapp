@@ -50,6 +50,7 @@ func (f *Form) Required(fields ...string) *Form {
 	}
 	return f
 }
+
 func (f *Form) Valid() bool {
 	return len(f.Errors) == 0
 }

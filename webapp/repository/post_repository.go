@@ -149,8 +149,83 @@ func (r *SQLPostRepository) AddVote(userID, postID int) error {
 }
 
 func (r *SQLPostRepository) GetAll(filter Filter) ([]Post, Metadata, error) {
-	// TODO
-	return nil, Metadata{}, nil
+	if err := filter.Validate(); err != nil {
+		return nil, Metadata{}, err
+	}
+
+	baseQuery := `
+	SELECT 
+		COUNT(*) OVER() as total_records,
+		p.id, p.title, p.url, p.user_id, p.created_at,
+		u.name as user_name,
+		COUNT(DISTINCT c.id) AS comment_count,
+		COUNT(DISTINCT v.user_id) AS vote_count,
+	FROM posts p
+	LEFT JOIN users u ON p.user_id = u.id
+	LEFT JOIN comments c ON p.id = c.post_id 
+	LEFT JOIN votes v ON p.id = v.post_id 
+	WHERE p.id = ?
+	`
+
+	var args []any
+
+	if filter.Query != "" {
+		baseQuery += " WHERE LOWER(p.title) LIKE ?"
+		args = append(args, "%"+strings.ToLower(filter.Query)+"%")
+	}
+
+	baseQuery += " GROUP BY p.id, p.title, p.url, p.user_id, p.created_at, u.name"
+	if filter.OrderBy == "popular" {
+		baseQuery += " ORDER BY vote_count DESC, p.created_at DESC"
+	} else {
+		baseQuery += " ORDER BY p.created_at DESC"
+	}
+
+	limit := filter.PageSize
+	offset := (filter.Page - 1) * filter.PageSize
+	baseQuery += " LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := r.DB.Query(baseQuery, args...)
+	if err != nil {
+		return nil, Metadata{}, err
+	}
+
+	defer rows.Close()
+
+	var posts []Post
+	var totalRecords int
+	for rows.Next() {
+		var post Post
+		err := rows.Scan(&totalRecords,
+			&post.ID,
+			&post.Title,
+			&post.URL,
+			&post.UserID,
+			&post.CreatedAt,
+			&post.UserName,
+			&post.CommentCount,
+			&post.VoteCount)
+		if err != nil {
+			return nil, Metadata{}, err
+		}
+
+		post.TotalRecords = totalRecords
+		posts = append(posts, post)
+	}
+
+	// If rows had an error during iteration
+	if err := rows.Err(); err != nil {
+		return nil, Metadata{}, err
+	}
+
+	// If nothing returned
+	if len(posts) == 0 {
+		return []Post{}, Metadata{}, nil
+	}
+
+	metadata := calculateMetadata(totalRecords, filter.Page, filter.PageSize)
+	return posts, metadata, nil
 }
 
 func (r *SQLPostRepository) GetByID(id int) (*Post, error) {
@@ -166,6 +241,7 @@ func (r *SQLPostRepository) GetByID(id int) (*Post, error) {
 	WHERE p.id = ?
 	GROUP BY p.id, p.title, p.url, p.user_id, p.created_at, u.name
 	`
+
 	row := r.DB.QueryRow(stmt, id)
 	var post Post
 	err := row.Scan(&post.ID,
@@ -182,4 +258,46 @@ func (r *SQLPostRepository) GetByID(id int) (*Post, error) {
 	}
 
 	return &post, nil
+}
+
+func (r *SQLPostRepository) GetComments(postID int) ([]Comment, error) {
+	query := `SELECT c.id, c.body, c.user_id, c.post_id, c.created_at, u.name as user_name
+		FROM comments c 
+		LEFT JOIN users u ON c.user_id = u.id 
+		WHERE c.post_id = ? 
+		ORDER BY c.created_at ASC
+	`
+
+	rows, err := r.DB.Query(query, postID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var comments []Comment
+	for rows.Next() {
+		var comment Comment
+		err := rows.Scan(&comment.ID,
+			&comment.Body,
+			&comment.UserID,
+			&comment.PostID,
+			&comment.CreatedAt,
+			&comment.UserName)
+		if err != nil {
+			return nil, err
+		}
+		comments = append(comments, comment)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if len(comments) == 0 {
+		return []Comment{}, nil // we return []Comment{} rather than nil to indicate we found 0 results
+	}
+
+	return comments, nil
+
 }

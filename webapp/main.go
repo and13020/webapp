@@ -8,13 +8,15 @@ import (
 	"os"
 	"time"
 
+	repo "webapp/repository"
+
 	"github.com/golangcollege/sessions"
 )
 
 type application struct {
 	errorLog   *log.Logger
 	infoLog    *log.Logger
-	user       UserRepository
+	user       repo.UserRepository
 	tmplDir    string
 	tp         *TemplateRenderer
 	publicPath string
@@ -39,7 +41,7 @@ func main() {
 	app := &application{
 		errorLog:   log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.LUTC|log.Lshortfile),
 		infoLog:    log.New(os.Stderr, "INFO\t", log.Ldate|log.Ltime|log.LUTC|log.Lshortfile),
-		user:       NewSQLUserRepository(db),
+		user:       repo.NewSQLUserRepository(db),
 		tmplDir:    "./templates",
 		publicPath: "./public/",
 		session:    ses, // secret goes here
@@ -56,7 +58,7 @@ func main() {
 
 }
 
-func setupDB(db *sql.DB, u UserRepository) {
+func setupDB(db *sql.DB, u repo.UserRepository) {
 	fmt.Println("enter setupDB")
 	go func() {
 		tableNames := []string{UserSchema, ProfileSchema, PostsSchema, CommentsSchema, VotesSchema}
@@ -68,7 +70,7 @@ func setupDB(db *sql.DB, u UserRepository) {
 	}()
 }
 
-func generateUsers(u UserRepository) error {
+func generateUsers(u repo.UserRepository) error {
 	fmt.Println("generating users")
 	_, err := u.CreateUser("Jonas", "jonas123@gmail.com", "secret001", "a1.png")
 	if err != nil {

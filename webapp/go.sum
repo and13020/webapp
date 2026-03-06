@@ -1,3 +1,5 @@
+github.com/and13020/webapp v0.0.0-20260306201101-31a2618dce46 h1:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
+github.com/and13020/webapp v0.0.0-20260306201101-31a2618dce46/go.mod h1:k+pRxl4BZpx5kPl2Of5+fxgmf+aoA/0x1ZLNq+pSWcg=
 github.com/golangcollege/sessions v1.2.0 h1:2aD9jac/N8NC/y+NEoirYMGlYymzS0ZQN6ASudm4P0s=
 github.com/golangcollege/sessions v1.2.0/go.mod h1:7iTf/FrZku0hWyjV95lES7abH89WBlyBjPyA1htnuks=
 github.com/justinas/alice v1.2.0 h1:+MHSA/vccVCF4Uq37S42jwlkvI2Xzl7zTPCN5BnZNVo=

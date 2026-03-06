@@ -1,0 +1,16 @@
+{{define "content"}}
+<div class="container">
+    <div class="auth-form">
+        <h2>Submit a post</h2>        
+        <form action="/submit" method="post" autocomplete="off">
+
+            <div class="form-group">
+                <label for="title">Post URL:</label>
+                <input type="text" id="title" name="title" value="" required>
+            </div>
+            <button type="submit" class="btn-primary">Submit post</button>
+        </form>
+
+    </div>
+</div>
+{{end}}

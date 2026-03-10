@@ -1,11 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
 	"path"
 	"path/filepath"
 	"sync"
+
+	postRepo "webapp/repository"
 )
 
 type TemplateRenderer struct {
@@ -15,10 +18,15 @@ type TemplateRenderer struct {
 	templateDir string
 }
 
+// Template Data should consist of anything we want while creating templates to display on the html pages
+// Including forms, auth status, flashes, user posts or any metadata
+// Our html will refer to these template fields when rendering
 type templateData struct {
 	Form            *Form
 	IsAuthenticated bool
 	Flash           string
+	Posts           []postRepo.Post
+	Metadata        postRepo.Metadata
 }
 
 func NewTemplateRenderer(templateDir string, isDev bool) *TemplateRenderer {
@@ -33,12 +41,15 @@ func (tr *TemplateRenderer) Render(w http.ResponseWriter, tmplName string, data 
 
 	tmpl, err := tr.getTemplate(tmplName)
 	if err != nil {
+		fmt.Println("Encountered renderer issue: ", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	err = tmpl.ExecuteTemplate(w, "base.html", data)
 	if err != nil {
+		fmt.Println("Encountered renderer issue 2: ", err)
+
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

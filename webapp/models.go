@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS profile (
 );
 `
 
-var PostsSchema = `CREATE TABLE posts (
+var PostsSchema = `CREATE TABLE IF NOT EXISTS posts (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	url TEXT NOT NULL,
 	title TEXT NOT NULL UNIQUE,
@@ -25,16 +25,15 @@ var PostsSchema = `CREATE TABLE posts (
 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );`
 
-var CommentsSchema = `CREATE TABLE comments (
+var CommentsSchema = `CREATE TABLE IF NOT EXISTS comments (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	body TEXT NOT NULL,
-	title TEXT NOT NULL UNIQUE,
     post_id INTEGER REFERENCES posts(posts_id) ON DELETE CASCADE,
     user_id INTEGER REFERENCES users(users_id) ON DELETE CASCADE,
 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );`
 
-var VotesSchema = `CREATE TABLE votes (
+var VotesSchema = `CREATE TABLE IF NOT EXISTS votes (
     post_id INTEGER REFERENCES posts(posts_id) ON DELETE CASCADE,
     user_id INTEGER REFERENCES users(users_id) ON DELETE CASCADE,
 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

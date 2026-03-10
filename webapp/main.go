@@ -18,6 +18,7 @@ type application struct {
 	errorLog   *log.Logger
 	infoLog    *log.Logger
 	user       repo.UserRepository
+	post       repo.PostRepository
 	tmplDir    string
 	tp         *TemplateRenderer
 	publicPath string
@@ -43,6 +44,7 @@ func main() {
 		errorLog:   log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.LUTC|log.Lshortfile),
 		infoLog:    log.New(os.Stderr, "INFO\t", log.Ldate|log.Ltime|log.LUTC|log.Lshortfile),
 		user:       repo.NewSQLUserRepository(db),
+		post:       repo.NewSQLPostRepository(db),
 		tmplDir:    "./templates",
 		publicPath: "./public/",
 		session:    ses, // secret goes here
@@ -60,7 +62,6 @@ func main() {
 }
 
 func setupDB(db *sql.DB, u repo.UserRepository) {
-	fmt.Println("enter setupDB")
 	go func() {
 		tableNames := []string{UserSchema, ProfileSchema, PostsSchema, CommentsSchema, VotesSchema}
 		generateTables(db, tableNames)

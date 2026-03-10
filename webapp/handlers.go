@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	repo "webapp/repository"
 )
 
 const (
@@ -9,9 +10,22 @@ const (
 )
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
-	// panic("error in home")
-	// app.infoLog.Printf("Session data: %s", app.session.GetString(r, "userID")) // used in middleware
-	app.render(w, r, "index.html", nil)
+
+	filter := repo.Filter{
+		Page:     1,
+		PageSize: 10,
+	}
+
+	posts, metadata, err := app.post.GetAll(filter)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	app.render(w, r, "index.html", &templateData{
+		Posts:    posts,
+		Metadata: metadata,
+	})
 }
 
 func (app *application) about(w http.ResponseWriter, r *http.Request) {
@@ -136,7 +150,7 @@ func (app *application) register(w http.ResponseWriter, r *http.Request) {
 		// if we fail to auth the user, render login page w/ empty form?
 		if err != nil {
 			//TODO: need to display error of wrong email/password
-			form.Errors.Add("generic", err.Error())
+			form.Errors.Add("generic", "Could not register the user")
 			app.render(w, r, "register.html", &templateData{
 				Form: form,
 			})
@@ -156,5 +170,47 @@ func (app *application) contact(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) submit(w http.ResponseWriter, r *http.Request) {
-	app.render(w, r, "submit.html", nil)
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		form := NewForm(r.PostForm)
+		form.Required("title", "url").
+			MaxLength("title", 255).
+			MaxLength("url", 255).
+			MinLength("url", 3)
+
+		if !form.Valid() {
+			form.Errors.Add("generic", "The data you submitted was not valid")
+			app.render(w, r, "submit.html", &templateData{
+				Form: form,
+			})
+			return
+		}
+
+		// If form valid, get details
+		title := r.FormValue("title")
+		url := r.FormValue("url")
+		user := app.getUserFromContext(r.Context())
+		id, err := app.post.CreatePost(title, url, user.ID)
+		if err != nil {
+			form.Errors.Add("generic", "Could not submit when creating post")
+			app.render(w, r, "submit.html", &templateData{
+				Form: form,
+			})
+			return
+		}
+
+		app.session.Put(r, "flash", "post created")
+		app.infoLog.Printf("post created with id: %d", id)
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	app.render(w, r, "submit.html", &templateData{
+		Form: NewForm(r.PostForm), // you can use r.Form to read url and body data, r.PostForm only reads body data, small difference
+	})
 }

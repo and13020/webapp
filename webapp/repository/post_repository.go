@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -148,23 +149,24 @@ func (r *SQLPostRepository) AddVote(userID, postID int) error {
 	return nil
 }
 
+// GetAll accepts any filter criteria for pagination and then returns a slice of all posts, metadata and an error if applicable.
+// If the filter is not valid, nil is returned with the error.
 func (r *SQLPostRepository) GetAll(filter Filter) ([]Post, Metadata, error) {
 	if err := filter.Validate(); err != nil {
 		return nil, Metadata{}, err
 	}
 
 	baseQuery := `
-	SELECT 
-		COUNT(*) OVER() as total_records,
-		p.id, p.title, p.url, p.user_id, p.created_at,
-		u.name as user_name,
-		COUNT(DISTINCT c.id) AS comment_count,
-		COUNT(DISTINCT v.user_id) AS vote_count,
-	FROM posts p
-	LEFT JOIN users u ON p.user_id = u.id
-	LEFT JOIN comments c ON p.id = c.post_id 
-	LEFT JOIN votes v ON p.id = v.post_id 
-	WHERE p.id = ?
+		SELECT 
+			COUNT(*) OVER() as total_records, 
+			p.id, p.title, p.url, p.user_id, p.created_at, 
+			u.name as user_name, 
+			COUNT(DISTINCT c.id) as comment_count, 
+			COUNT(DISTINCT v.user_id) as vote_count 
+		FROM posts p 
+		LEFT JOIN users u ON p.user_id = u.id 
+		LEFT JOIN comments c ON p.id = c.post_id 
+		LEFT JOIN votes v ON p.id = v.post_id 
 	`
 
 	var args []any
@@ -233,7 +235,7 @@ func (r *SQLPostRepository) GetByID(id int) (*Post, error) {
 	SELECT p.id, p.title, p.url, p.user_id, p.created_at,
 	u.name as user_name,
 	COUNT(DISTINCT c.id) AS comment_count,
-	COUNT(DISTINCT v.user_id) AS vote_count,
+	COUNT(DISTINCT v.user_id) AS vote_count 
 	FROM posts p
 	LEFT JOIN users u ON p.user_id = u.id
 	LEFT JOIN comments c ON p.id = c.post_id 
@@ -300,4 +302,75 @@ func (r *SQLPostRepository) GetComments(postID int) ([]Comment, error) {
 
 	return comments, nil
 
+}
+
+func (p *Post) GetVoteCountsHuman() string {
+	return fmt.Sprintf("%d votes", p.VoteCount)
+}
+
+func (p *Post) GetCommentCountsHuman() string {
+	return fmt.Sprintf("%d comments", p.CommentCount)
+}
+
+func (p *Post) CreatedAtHuman() string {
+	d := time.Since(p.CreatedAt)
+	return durationSincePost(d)
+}
+
+func durationSincePost(d time.Duration) string {
+	// n = hour/day/second/year
+	const hrsInYear = 8760
+	hrs := int(d.Hours())
+
+	// Years
+	if mod := hrs / hrsInYear; mod >= 1 {
+		if mod > 1 {
+			return fmt.Sprintf("%d years ago", mod)
+		}
+		return fmt.Sprintf("%d year ago", mod)
+	}
+
+	// Months
+	if mod := hrs / (hrsInYear / 12); mod >= 1 {
+		if mod > 1 {
+			return fmt.Sprintf("%d months ago", mod)
+		}
+		return fmt.Sprintf("%d month ago", mod)
+	}
+
+	// Days
+	if mod := hrs / (hrsInYear / 365); mod >= 1 {
+		if mod > 1 {
+			return fmt.Sprintf("%d days ago", mod)
+		}
+		return fmt.Sprintf("%d day ago", mod)
+	}
+
+	// Hours
+	if hrs > 1 {
+		return fmt.Sprintf("%d hours ago", hrs)
+	}
+	if hrs == 1 {
+		return fmt.Sprintf("%d hour ago", hrs)
+	}
+
+	// Minutes
+	mins := int(d.Minutes())
+	if mins > 1 {
+		return fmt.Sprintf("%d minutes ago", mins)
+	}
+	if mins == 1 {
+		return fmt.Sprintf("%d minute ago", mins)
+	}
+
+	// Seconds
+	secs := int(d.Seconds())
+	if secs > 1 {
+		return fmt.Sprintf("%d seconds ago", secs)
+	}
+	if secs == 1 {
+		return fmt.Sprintf("%d second ago", secs)
+	}
+
+	return "could not retrieve time"
 }

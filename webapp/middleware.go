@@ -7,12 +7,17 @@ import (
 	"fmt"
 	"net/http"
 	"runtime/debug"
+
+	repo "webapp/repository"
 )
 
+// we declare package scope global variables (non exportable) for context keys
+// this is to avoid collision w/ any other keys
 type contextKey string
 
 const (
 	contextAuthKey = contextKey("isAuthKey")
+	contextUserKey = contextKey("auth_user")
 )
 
 func (app *application) logger(next http.Handler) http.Handler {
@@ -36,7 +41,7 @@ func (app *application) requireAuth(next http.Handler) http.Handler {
 }
 
 func (app *application) isAuthenticated(r *http.Request) bool {
-	isAuth, ok := r.Context().Value(contextAuthKey).(bool)
+	isAuth, ok := r.Context().Value(contextAuthKey).(bool) // retrieve value within context of given key
 	if !ok {
 		return false
 	}
@@ -63,7 +68,7 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		_, err := app.user.GetUserByEmail(app.session.GetString(r, loggedInUserKey))
+		u, err := app.user.GetUserByEmail(app.session.GetString(r, loggedInUserKey))
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				app.session.Remove(r, loggedInUserKey)
@@ -74,7 +79,9 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 			return
 		}
 
+		// Adding authkey and userkey values to the context
 		ctx := context.WithValue(r.Context(), contextAuthKey, true)
+		ctx = context.WithValue(ctx, contextUserKey, u)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 
@@ -86,4 +93,12 @@ func (app *application) serverError(w http.ResponseWriter, err error) {
 	// Our app's error log - add to its output
 	app.errorLog.Output(2, trace)
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+}
+
+func (app *application) getUserFromContext(ctx context.Context) *repo.User {
+	u, ok := ctx.Value(contextUserKey).(*repo.User)
+	if !ok {
+		panic("User could not be retrieved from given context")
+	}
+	return u
 }

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 	repo "webapp/repository"
 )
 
@@ -9,11 +11,23 @@ const (
 	loggedInUserKey = "logged_in_user_id"
 )
 
+// readIntWithDefault accepts a request, key and default value
+// It will attempt to get from the URL query the given key as an int, otherwise it will return the given default value
+func (app *application) readIntWithDefault(r *http.Request, key string, dvalue int) int {
+	v, err := strconv.Atoi(r.URL.Query().Get(key))
+	if err != nil {
+		return dvalue
+	}
+	return v
+}
+
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 
 	filter := repo.Filter{
-		Page:     1,
-		PageSize: 10,
+		Query:    r.URL.Query().Get("q"),
+		OrderBy:  r.URL.Query().Get("order_by"),
+		Page:     app.readIntWithDefault(r, "page", 1),
+		PageSize: app.readIntWithDefault(r, "page_size", 50),
 	}
 
 	posts, metadata, err := app.post.GetAll(filter)
@@ -25,6 +39,10 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	app.render(w, r, "index.html", &templateData{
 		Posts:    posts,
 		Metadata: metadata,
+		NextLink: fmt.Sprintf("/?q=%s&order_by=%s&page=%d&page_size=%d",
+			filter.Query, filter.OrderBy, metadata.NextPage, filter.PageSize),
+		PrevLink: fmt.Sprintf("/?q=%s&order_by=%s&page=%d&page_size=%d",
+			filter.Query, filter.OrderBy, metadata.PrevPage, filter.PageSize),
 	})
 }
 
@@ -212,5 +230,80 @@ func (app *application) submit(w http.ResponseWriter, r *http.Request) {
 
 	app.render(w, r, "submit.html", &templateData{
 		Form: NewForm(r.PostForm), // you can use r.Form to read url and body data, r.PostForm only reads body data, small difference
+	})
+}
+
+// Add the vote, then redirect to home
+func (app *application) vote(w http.ResponseWriter, r *http.Request) {
+
+	postID := app.readIntWithDefault(r, "post_id", 0)
+	u := app.getUserFromContext(r.Context())
+
+	err := app.post.AddVote(u.ID, postID)
+	if err != nil {
+		app.errorLog.Printf("error adding vote: %s\n", err.Error())
+		app.session.Put(r, "flash", "Voting failed")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	app.session.Put(r, "flash", fmt.Sprintf("You voted for post with id %d", postID))
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// Comments allows user to click on comment, to redirect page to view comments for a given post
+func (app *application) comments(w http.ResponseWriter, r *http.Request) {
+
+	postID := app.readIntWithDefault(r, "post_id", 0)
+	u := app.getUserFromContext(r.Context())
+	post, err := app.post.GetByID(postID)
+	if err != nil {
+		app.errorLog.Printf("Could not get by id: %d\n", postID)
+		app.session.Put(r, "flash", "Could not find post using post id")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	comments, err := app.post.GetComments(postID)
+	if err != nil {
+		app.errorLog.Printf("Could not get comment: %s\n", err.Error())
+		app.session.Put(r, "flash", "Comment could not be reached")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+
+		form := NewForm(r.PostForm)
+		form.Required("comment").
+			MinLength("comment", 5).
+			MaxLength("comment", 160)
+		if !form.Valid() {
+			form.Errors.Add("generic", "Comments must be from 5 to 160 characters long")
+			app.render(w, r, "comments.html", &templateData{
+				Form:     form,
+				Comments: comments,
+				Post:     post,
+			})
+			return
+		}
+
+		_, err = app.post.AddComment(u.ID, postID, r.FormValue("comment"))
+		if err != nil {
+			app.errorLog.Printf("Could not add comment: %s\n", err.Error())
+			app.session.Put(r, "flash", "Comment could not be added")
+			http.Redirect(w, r, fmt.Sprintf("/comments?post_id=%d", postID), http.StatusSeeOther)
+			return
+		}
+	}
+
+	app.render(w, r, "comments.html", &templateData{
+		Form:     NewForm(r.PostForm),
+		Comments: comments,
+		Post:     post,
 	})
 }

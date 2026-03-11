@@ -22,6 +22,8 @@ func (app *application) routes() http.Handler {
 	mux.Handle("/logout", secureMiddleware.ThenFunc(app.logout))
 	mux.Handle("/submit", secureMiddleware.Append(app.requireAuth).ThenFunc(app.submit))
 	mux.Handle("/register", secureMiddleware.ThenFunc(app.register))
+	mux.Handle("/vote", secureMiddleware.ThenFunc(app.vote))
+	mux.Handle("/comments", secureMiddleware.ThenFunc(app.comments))
 
 	// h1 := app.logger(mux)  	// you can nest the middleware or keep adding one at a time
 	// h2 := app.recover(h1)

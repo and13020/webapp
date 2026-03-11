@@ -27,6 +27,10 @@ type templateData struct {
 	Flash           string
 	Posts           []postRepo.Post
 	Metadata        postRepo.Metadata
+	Comments        []postRepo.Comment
+	Post            *postRepo.Post
+	NextLink        string
+	PrevLink        string
 }
 
 func NewTemplateRenderer(templateDir string, isDev bool) *TemplateRenderer {

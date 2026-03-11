@@ -1,43 +1,16 @@
-{{define "content"}}
-<div class="container">
+<div class="filter-bar">
+  <form method="GET" class="filter-form" action="/" autocomplete="off">
+    <input type="text" name="q" placeholder="Search posts..." class="search-input" value="">
 
-  {{template "filter-form.html" .}}
+    <select name="page_size" class="page-size-select">
+      <option value="10">10 per page</option>
+      <option value="25">25 per page</option>
+      <option value="50">50 per page</option>
+      <option value="100">100 per page</option>
+    </select>
 
-  <div class="posts-list">
-    {{with .Posts}}
-    {{range .}}
-    <div class="post-item">
-      <div class="post-content">
-        <div class="post-title">
-          <a href="{{.URL}}" class="post-link" target="_blank">{{.Title}}</a>
-          <span class="post-domain">Host here</span>
+    <button type="submit" class="search-btn">Search</button>
+  </form>
 
-          <a href="#" class="post-link">username here</a>
-        </div>
-        <div class="post-meta">
-          <a href="/vote?post_id={{.ID}}" class="author"> <span class="points">{{.GetVoteCountsHuman}}</span></a>|
-          <span class="time">{{.CreatedAtHuman}}</span>
-          | <a href="/comments?post_id={{.ID}}" class="comments-link">{{.GetCommentCountsHuman}}</a>
-        </div>
-      </div>
-    </div>
-    {{end}}
-
-    {{end}}
-  </div>
-
-
-  {{if gt .Metadata.TotalRecords .Metadata.PageSize}}
-  <div class="pagination">
-    {{if gt .Metadata.PrevPage 0}}
-    <a href="{{.PrevLink}}" class="more-link">Prev</a>
-    {{end}}
-
-    {{if gt .Metadata.NextPage 0}}
-    <a href="{{.NextLink}}" class="more-link">Next</a>
-    {{end}}
-  </div>
-  {{end}}
-
+  <a href="/?order_by=popular" class="popular-link">Popular</a>
 </div>
-{{end}}

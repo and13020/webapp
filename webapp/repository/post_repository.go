@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -230,6 +231,7 @@ func (r *SQLPostRepository) GetAll(filter Filter) ([]Post, Metadata, error) {
 	return posts, metadata, nil
 }
 
+// GetByID accepts an id and will return a Post object with the given posts.id field if it exists
 func (r *SQLPostRepository) GetByID(id int) (*Post, error) {
 	stmt := `
 	SELECT p.id, p.title, p.url, p.user_id, p.created_at,
@@ -368,9 +370,14 @@ func durationSincePost(d time.Duration) string {
 	if secs > 1 {
 		return fmt.Sprintf("%d seconds ago", secs)
 	}
-	if secs == 1 {
-		return fmt.Sprintf("%d second ago", secs)
-	}
 
-	return "could not retrieve time"
+	return fmt.Sprintf("%d second ago", secs)
+}
+
+func (p *Post) GetHost() string {
+	url, err := url.Parse(p.URL)
+	if err != nil {
+		return "<invalid-host>"
+	}
+	return url.Hostname()
 }

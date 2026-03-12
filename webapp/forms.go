@@ -8,10 +8,7 @@ import (
 	"unicode/utf8"
 )
 
-// regex doesn't seem to work properly..
 var EmailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-
-// var EmailRX = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+\@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 
 // Errors is a map of key: strings (fields) and values: slice of strings (errors)
 type formErrors map[string][]string
@@ -41,6 +38,8 @@ func NewForm(form url.Values) *Form {
 	}
 }
 
+// (f *Form) Required(fields ...string) *Form
+// f must contain the fields values or else it will return an error in the form
 func (f *Form) Required(fields ...string) *Form {
 	for _, field := range fields {
 		value := f.Get(field)
@@ -51,10 +50,12 @@ func (f *Form) Required(fields ...string) *Form {
 	return f
 }
 
+// Valid returns false if form has any errors
 func (f *Form) Valid() bool {
 	return len(f.Errors) == 0
 }
 
+// MaxLength adds an error to form if field is longer than n
 func (f *Form) MaxLength(field string, n int) *Form {
 	value := f.Get(field)
 	if value == "" {
@@ -67,6 +68,7 @@ func (f *Form) MaxLength(field string, n int) *Form {
 	return f
 }
 
+// MinLength adds an error to form if field is shorter than n
 func (f *Form) MinLength(field string, n int) *Form {
 	value := f.Get(field)
 	if value == "" {
@@ -79,6 +81,8 @@ func (f *Form) MinLength(field string, n int) *Form {
 	return f
 }
 
+// Matches checks if field matches the regex pattern.
+// Any errors are added to f.Errors
 func (f *Form) Matches(field string, pattern *regexp.Regexp) *Form {
 	value := f.Get(field)
 	if value == "" {
@@ -91,6 +95,8 @@ func (f *Form) Matches(field string, pattern *regexp.Regexp) *Form {
 	return f
 }
 
+// IsEmail checks if field matches email regex.
+// If not it adds the error to f.Errors
 func (f *Form) IsEmail(field string) *Form {
 	value := f.Get(field)
 	if value == "" {

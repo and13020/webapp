@@ -10,6 +10,22 @@ import (
 	"time"
 )
 
+type PostRepository interface {
+	CreatePost(title, url string, userID int) (int, error)
+	AddComment(userID, postID int, body string) (int, error)
+	AddVote(userID, postID int) error
+	GetAll(filter Filter) ([]Post, Metadata, error)
+	GetByID(id int) (*Post, error)
+	GetComments(postID int) ([]Comment, error)
+}
+
+type Filter struct {
+	Page     int    `json:"page"`
+	PageSize int    `json:"page_size"`
+	OrderBy  string `json:"order_by"`
+	Query    string `json:"query"`
+}
+
 type Post struct {
 	ID           int       `json:"id"`
 	Title        string    `json:"title"`
@@ -29,13 +45,6 @@ type Comment struct {
 	PostID    int       `json:"post_id"`
 	UserName  string    `json:"user_name"`
 	CreatedAt time.Time `json:"created_at"`
-}
-
-type Filter struct {
-	Page     int    `json:"page"`
-	PageSize int    `json:"page_size"`
-	OrderBy  string `json:"order_by"`
-	Query    string `json:"query"`
 }
 
 func (f *Filter) Validate() error {
@@ -79,15 +88,6 @@ func calculateMetadata(totalRecords, page, pageSize int) Metadata {
 	}
 
 	return meta
-}
-
-type PostRepository interface {
-	CreatePost(title, url string, userID int) (int, error)
-	AddComment(userID, postID int, body string) (int, error)
-	AddVote(userID, postID int) error
-	GetAll(filter Filter) ([]Post, Metadata, error)
-	GetByID(id int) (*Post, error)
-	GetComments(postID int) ([]Comment, error)
 }
 
 type SQLPostRepository struct {

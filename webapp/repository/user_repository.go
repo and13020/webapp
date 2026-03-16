@@ -7,12 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	util "webapp/utils"
-
 	"golang.org/x/crypto/bcrypt"
 )
-
-var ErrInvalidCredential = errors.New("invalid credential")
 
 type Profile struct {
 	ProfileID int64     `json:"id"`
@@ -37,23 +33,25 @@ type UserRepository interface {
 	Authenticate(email, plainPassword string) (int, error)
 }
 
+var ErrInvalidCredential = errors.New("invalid credential")
+
 type SQLUserRepository struct {
-	DB *sql.DB
+	db *sql.DB
 }
 
 func NewSQLUserRepository(db *sql.DB) *SQLUserRepository {
-	return &SQLUserRepository{DB: db}
+	return &SQLUserRepository{db: db}
 }
 
 func (r *SQLUserRepository) CreateUser(name, email, plainPassword, avatar string) (int, error) {
 	ctx := context.Background()
 
-	tx, err := r.DB.BeginTx(ctx, nil)
+	tx, err := r.db.BeginTx(ctx, nil) // <-- does not work
 	if err != nil {
 		return 0, err
 	}
 
-	hashPass, err := util.HashPassword(plainPassword)
+	hashPass, err := bcrypt.GenerateFromPassword([]byte(plainPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return 0, err
 	}
@@ -69,9 +67,13 @@ func (r *SQLUserRepository) CreateUser(name, email, plainPassword, avatar string
 
 	// sanitize inputs to prevent SQL injection - using ? placeholders and passing args separately will handle this for us
 	// Postgres will use #1, #2, etc instead of ? placeholders
-	result, err := stmt.Exec(name, email, hashPass)
+	result, err := stmt.Exec(name, email, string(hashPass))
 	if err != nil {
-		fmt.Println("Error executing statement:", err)
+		return 0, err
+	}
+
+	userID, err := result.LastInsertId()
+	if err != nil {
 		return 0, err
 	}
 
@@ -82,11 +84,6 @@ func (r *SQLUserRepository) CreateUser(name, email, plainPassword, avatar string
 		return 0, err
 	}
 	defer pStmt.Close()
-
-	userID, err := result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
 
 	_, err = pStmt.Exec(userID, "default_avatar.png")
 	if err != nil {
@@ -104,7 +101,7 @@ func (r *SQLUserRepository) CreateUsers(users []User) error {
 	insert := `INSERT INTO users (name, email, hashed_password) VALUES (?, ?, ?);`
 	commit := `COMMIT;`
 
-	txn, err := r.DB.Begin()
+	txn, err := r.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -152,7 +149,7 @@ func (r *SQLUserRepository) CreateUsers(users []User) error {
 }
 
 func (r *SQLUserRepository) GetUsersByName(name string) ([]User, error) {
-	pstmt, err := r.DB.Prepare(`SELECT id, name, email, hashed_password, created_at FROM users WHERE name LIKE ?`)
+	pstmt, err := r.db.Prepare(`SELECT id, name, email, hashed_password, created_at FROM users WHERE name LIKE ?`)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +179,7 @@ func (r *SQLUserRepository) GetUsersByName(name string) ([]User, error) {
 }
 
 func (r *SQLUserRepository) GetUserByEmail(email string) (*User, error) {
-	stmt, err := r.DB.Prepare(`SELECT id, name, email, hashed_password, created_at FROM users WHERE email = ?`)
+	stmt, err := r.db.Prepare(`SELECT id, name, email, hashed_password, created_at FROM users WHERE email = ?`)
 	if err != nil {
 		return nil, err
 	}

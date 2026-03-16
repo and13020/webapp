@@ -7,8 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime/debug"
-
-	repo "webapp/repository"
+	r "webapp/repository"
 )
 
 // we declare package scope global variables (non exportable) for context keys
@@ -95,8 +94,8 @@ func (app *application) serverError(w http.ResponseWriter, err error) {
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
-func (app *application) getUserFromContext(ctx context.Context) *repo.User {
-	u, ok := ctx.Value(contextUserKey).(*repo.User)
+func (app *application) getUserFromContext(ctx context.Context) *r.User {
+	u, ok := ctx.Value(contextUserKey).(*r.User)
 	if !ok {
 		panic("User could not be retrieved from given context")
 	}

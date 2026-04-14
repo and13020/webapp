@@ -6,8 +6,6 @@ import (
 	"os"
 	"testing"
 
-	c "webapp/common"
-
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
@@ -17,7 +15,6 @@ var db *sql.DB
 var mockDB *sql.DB
 var mock sqlmock.Sqlmock
 var tableNames []string
-var app c.Application
 
 // TestMain to test our DB connection
 // useful to run things prior to any test case

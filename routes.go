@@ -9,7 +9,7 @@ import (
 func (app *application) routes() http.Handler {
 	mux := http.NewServeMux()
 
-	defaultMiddleware := alice.New(app.recover, app.logger)
+	defaultMiddleware := alice.New(app.recover, app.loggger)
 	secureMiddleware := alice.New(app.session.Enable, app.authenticate)
 
 	// adding static html path/route

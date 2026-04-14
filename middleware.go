@@ -19,7 +19,7 @@ const (
 	contextUserKey = contextKey("auth_user")
 )
 
-func (app *application) logger(next http.Handler) http.Handler {
+func (app *application) loggger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.infoLog.Printf("%s - %s %s %s", r.RemoteAddr, r.Proto, r.Method, r.URL.RequestURI())
 		next.ServeHTTP(w, r)

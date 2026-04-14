@@ -107,5 +107,7 @@ func (tr *TemplateRenderer) parseTemplate(filename string) (*template.Template, 
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println("Files we are using to build template: ", files)
 	return tmpl, nil
 }

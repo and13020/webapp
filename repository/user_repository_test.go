@@ -39,16 +39,18 @@ func TestSQLUserRepository_CreateUser(t *testing.T) {
 func TestSQLUserRepository_CreateUser_DuplicateEmail(t *testing.T) {
 
 	repo := r.NewSQLUserRepository(db)
+	dupeEmail := "email_dupe@email.com"
 
-	uID, err := repo.CreateUser(stdname, stdmail, stdpass, "avatar")
+	uID, err := repo.CreateUser(stdname, dupeEmail, stdpass, "avatar")
 	assert.NoError(t, err)
 	assert.Greater(t, uID, 0)
 
-	_, err = repo.CreateUser("John Doe2", stdmail, "password2", "avatar2")
+	_, err = repo.CreateUser("John Doe2", dupeEmail, "password2", "avatar2")
 	assert.Error(t, err)
 
 }
 
+// TODO: revisit
 func TestSQLUserRepository_CreateUser_Tx(t *testing.T) {
 
 	repo := r.NewSQLUserRepository(mockDB)
@@ -58,7 +60,7 @@ func TestSQLUserRepository_CreateUser_Tx(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectPrepare(`INSERT INTO users`)
 	mock.ExpectExec("INSERT INTO users").
-		WithArgs(user.Name, user.Email, user.HashedPassword).
+		WithArgs(user.Name, user.Email, sqlmock.AnyArg()).
 		WillReturnResult(result)
 
 	mock.ExpectPrepare(`INSERT INTO profile`)
@@ -67,7 +69,8 @@ func TestSQLUserRepository_CreateUser_Tx(t *testing.T) {
 		WillReturnResult(result)
 	mock.ExpectCommit()
 
-	_, err := repo.CreateUser(user.Name, user.Email, user.HashedPassword, "avatar")
+	// passing in plain password "password"
+	_, err := repo.CreateUser(user.Name, user.Email, stdpass, "avatar")
 	if err != nil {
 		t.Errorf("\nERROR creating user: %s: ERROR: %s", user.Name, err)
 	}
@@ -148,7 +151,7 @@ func TestSQLUserRepository_CreateUser_Result(t *testing.T) {
 		WillReturnResult(result)
 	mock.ExpectCommit()
 
-	_, err := repo.CreateUser(user.Name, user.Email, "", "avatar")
+	_, err := repo.CreateUser(user.Name, "email2@email.com", "", "avatar")
 	assert.NoError(t, err)
 
 	userID, err := result.LastInsertId()
@@ -168,7 +171,7 @@ func TestSQLUserRepository_CreateUser_LastInsertIdFail(t *testing.T) {
 		WithArgs(user.Name, user.Email, user.HashedPassword).
 		WillReturnResult(result)
 
-	_, err := repo.CreateUser(user.Name, user.Email, user.HashedPassword, "avatar")
+	_, err := repo.CreateUser(user.Name, "email3@email.com", user.HashedPassword, "avatar")
 	assert.Error(t, err)
 
 	userID, err := result.LastInsertId()
@@ -192,7 +195,7 @@ func TestSQLUserRepository_CreateUser_TxProfExecFail(t *testing.T) {
 		WithArgs(1, user.Profile.Avatar).
 		WillReturnError(errors.New("duplicate profile id"))
 
-	_, err := repo.CreateUser(user.Name, user.Email, user.HashedPassword, "avatar")
+	_, err := repo.CreateUser(user.Name, "email4@email.com", user.HashedPassword, "avatar")
 	assert.Error(t, err)
 }
 
@@ -200,12 +203,13 @@ func TestSQLUserRepository_Authenticate_Success(t *testing.T) {
 
 	repo := r.NewSQLUserRepository(db)
 
-	uID, err := repo.CreateUser(stdname, stdmail, stdpass, "avatar")
+	// no need to create a new user if we already inserted one..
+	uID, err := repo.CreateUser(stdname, "email5@email.com", stdpass, "avatar")
 
 	assert.NoError(t, err)
 	assert.Greater(t, uID, 0)
 
-	authUserID, err := repo.Authenticate(stdmail, stdpass)
+	authUserID, err := repo.Authenticate("email5@email.com", stdpass)
 	assert.NoError(t, err)
 	assert.Equal(t, uID, authUserID)
 }
@@ -214,12 +218,12 @@ func TestSQLUserRepository_Authenticate_WrongPassword(t *testing.T) {
 
 	repo := r.NewSQLUserRepository(db)
 
-	uID, err := repo.CreateUser(stdname, stdmail, stdpass, "avatar")
+	uID, err := repo.CreateUser(stdname, "email6@email.com", stdpass, "avatar")
 
 	assert.NoError(t, err)
 	assert.Greater(t, uID, 0)
 
-	_, err = repo.Authenticate(stdmail, "wrongpassword")
+	_, err = repo.Authenticate("email6@email.com", "wrongpassword")
 	assert.Error(t, err)
 	assert.Equal(t, r.ErrInvalidCredential, err)
 }
